@@ -11,7 +11,7 @@ class Item:
     def __eq__(self, other):
         return self.name == other.name
 
-    def __lt__(self, other):
+    def __gt__(self, other):
         comparison = self.comparison_memo.get_comparison(self.name, other.name)
         if comparison is not None:
             return comparison
@@ -21,6 +21,7 @@ class Item:
         return result
 
     def ask_user(self, other):
+        self.comparison_memo.increment_comparison_count()
         answer = (
             input(f"Is {self.name} better than {other.name}? (y/n): ").strip().lower()
         )
@@ -31,20 +32,16 @@ class ComparisonMemo:
     def __init__(self):
         self.memo = {}
         self.items = {}
+        self.comparison_count = 0
 
     def add_item(self, item):
         self.items[item.name] = item
 
     def get_comparison(self, name1, name2):
-        # Check direct comparison
-        comparison = self.memo.get((name1, name2))
-        if comparison is not None:
-            return comparison
-        # Check inverse comparison
-        if (name2, name1) in self.memo:
-            return not self.memo[(name2, name1)]
-        # Transitivity and inference logic to be handled after user input
-        return None
+        return self.memo.get((name1, name2))
+
+    def increment_comparison_count(self):
+        self.comparison_count += 1
 
     def set_comparison(self, name1, name2, result):
         # Set direct comparison
@@ -53,19 +50,27 @@ class ComparisonMemo:
         # Extend the memoization table with transitive relations
         self.update_transitive_relations(name1, name2, result)
 
-    # This one I am not sure about yet, but it's a start
+    # A different approach but still a wrong one :)
     def update_transitive_relations(self, name1, name2, result):
+        # Iterate over all items to check possible transitive relations
         for intermediary_name in self.items:
-            # If intermediary_name can be used to infer new comparisons, update the memo
-            if (name1, intermediary_name) in self.memo:
-                # If name1 < intermediary_name and intermediary_name < name2, then name1 < name2
-                if self.memo[(name1, intermediary_name)] == result:
-                    self.memo[(intermediary_name, name2)] = result
-                    self.memo[(name2, intermediary_name)] = not result
-            if (intermediary_name, name2) in self.memo:
-                if self.memo[(intermediary_name, name2)] == result:
-                    self.memo[(name1, intermediary_name)] = result
-                    self.memo[(intermediary_name, name1)] = not result
+            if intermediary_name == name1 or intermediary_name == name2:
+                continue  # Skip if intermediary is one of the compared items (no transitive relation to update)
+
+            forward_key = (name2, intermediary_name)
+            backward_key = (intermediary_name, name1)
+
+            # If A < B and B < C, then A < C
+            if result and forward_key in self.memo and self.memo[forward_key]:
+                self.set_direct_comparison(name1, intermediary_name, True)
+
+            # If A > B and B > C, then A > C
+            if result and backward_key in self.memo and self.memo[backward_key]:
+                self.set_direct_comparison(intermediary_name, name2, True)
+
+    def set_direct_comparison(self, name1, name2, result):
+        self.memo[(name1, name2)] = result
+        self.memo[(name2, name1)] = not result
 
 
 if __name__ == "__main__":
@@ -93,10 +98,8 @@ if __name__ == "__main__":
             exit()
     else:
         print("Enter the items, one per line. Enter an empty line when done:")
-        while True:
-            line = input()
-            if line == "":
-                break
+        item_names = []
+        while line := input():
             item_names.append(line.strip())
 
     items = [Item(name, comparison_memo) for name in item_names]
@@ -106,6 +109,8 @@ if __name__ == "__main__":
         )  # Update comparison_memo with items, stored inside the object
 
     items.sort()
+
+    print(f"Total comparisons made: {comparison_memo.comparison_count}")
 
     print("Sorted items based on your preferences:")
     for rank, item in enumerate(items, start=1):
