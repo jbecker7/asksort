@@ -50,23 +50,30 @@ class ComparisonMemo:
         # Extend the memoization table with transitive relations
         self.update_transitive_relations(name1, name2, result)
 
-    # A different approach but still a wrong one :)
     def update_transitive_relations(self, name1, name2, result):
         # Iterate over all items to check possible transitive relations
         for intermediary_name in self.items:
             if intermediary_name == name1 or intermediary_name == name2:
-                continue  # Skip if intermediary is one of the compared items (no transitive relation to update)
+                continue  # Skip if intermediary is one of the compared items
 
             forward_key = (name2, intermediary_name)
             backward_key = (intermediary_name, name1)
 
+            # Check for transitive relations using get to avoid KeyError
+            forward_lookup = self.memo.get(forward_key)
+            backward_lookup = self.memo.get(backward_key)
+
             # If A < B and B < C, then A < C
-            if result and forward_key in self.memo and self.memo[forward_key]:
+            if result and forward_lookup is not None and forward_lookup:
                 self.set_direct_comparison(name1, intermediary_name, True)
+            elif not result and forward_lookup is not None and not forward_lookup:
+                self.set_direct_comparison(intermediary_name, name1, False)
 
             # If A > B and B > C, then A > C
-            if result and backward_key in self.memo and self.memo[backward_key]:
+            if result and backward_lookup is not None and backward_lookup:
                 self.set_direct_comparison(intermediary_name, name2, True)
+            elif not result and backward_lookup is not None and not backward_lookup:
+                self.set_direct_comparison(name2, intermediary_name, False)
 
     def set_direct_comparison(self, name1, name2, result):
         self.memo[(name1, name2)] = result
