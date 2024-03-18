@@ -18,6 +18,10 @@ class TestItemComparison(unittest.TestCase):
 
         # Check transitivity inference (Apple > Carrot) without further user input
         comparison_result = self.comparison_memo.get_comparison("Apple", "Carrot")
+        print(f"Comparison result for Apple > Carrot: {comparison_result}")
+
+        print("Final state of memo:", self.comparison_memo.memo)
+        print("Comparison count:", self.comparison_memo.comparison_count)
 
         self.assertIsNotNone(
             comparison_result,

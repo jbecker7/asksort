@@ -44,36 +44,31 @@ class ComparisonMemo:
         self.comparison_count += 1
 
     def set_comparison(self, name1, name2, result):
-        # Set direct comparison
+        print(f"Setting direct comparison: {name1} > {name2} is {result}")
         self.memo[(name1, name2)] = result
         self.memo[(name2, name1)] = not result
-        # Extend the memoization table with transitive relations
-        self.update_transitive_relations(name1, name2, result)
+        self.update_transitive_relations()
 
-    def update_transitive_relations(self, name1, name2, result):
-        # Iterate over all items to check possible transitive relations
-        for intermediary_name in self.items:
-            if intermediary_name == name1 or intermediary_name == name2:
-                continue  # Skip if intermediary is one of the compared items
+    def update_transitive_relations(self):
+        for name1 in self.items:
+            for name2 in self.items:
+                if name1 == name2:
+                    continue  # Skip comparisons of an item with itself (obvs)
+                for intermediary_name in self.items:
+                    if intermediary_name == name1 or intermediary_name == name2:
+                        continue  # Avoid direct comparisons (A > B > A is not useful)
 
-            forward_key = (name2, intermediary_name)
-            backward_key = (intermediary_name, name1)
+                    # Direct relation checks (A > B, B > C)
+                    direct_relation = self.memo.get((name1, name2))
+                    indirect_relation_1 = self.memo.get((name1, intermediary_name))
+                    indirect_relation_2 = self.memo.get((intermediary_name, name2))
 
-            # Check for transitive relations using get to avoid KeyError
-            forward_lookup = self.memo.get(forward_key)
-            backward_lookup = self.memo.get(backward_key)
-
-            # If A < B and B < C, then A < C
-            if result and forward_lookup is not None and forward_lookup:
-                self.set_direct_comparison(name1, intermediary_name, True)
-            elif not result and forward_lookup is not None and not forward_lookup:
-                self.set_direct_comparison(intermediary_name, name1, False)
-
-            # If A > B and B > C, then A > C
-            if result and backward_lookup is not None and backward_lookup:
-                self.set_direct_comparison(intermediary_name, name2, True)
-            elif not result and backward_lookup is not None and not backward_lookup:
-                self.set_direct_comparison(name2, intermediary_name, False)
+                    # Transitivity application (A > B, B > C => A > C)
+                    if indirect_relation_1 and indirect_relation_2:
+                        if direct_relation is None:  # Only set if not already set
+                            print(f"Setting transitive relation: {name1} > {name2}")
+                            self.memo[(name1, name2)] = True
+                            self.memo[(name2, name1)] = False
 
     def set_direct_comparison(self, name1, name2, result):
         self.memo[(name1, name2)] = result
@@ -81,7 +76,6 @@ class ComparisonMemo:
 
 
 if __name__ == "__main__":
-    # Hopefully this is the convention, idk for sure but seems file is the option you would want refactored as an arg? not pasting
     parser = argparse.ArgumentParser(
         description="Sort items based on user preferences with minimal comparisons."
     )
@@ -115,7 +109,9 @@ if __name__ == "__main__":
             item
         )  # Update comparison_memo with items, stored inside the object
 
-    items.sort()
+    items.sort(
+        reverse=True
+    )  # This is bad :( and should be done by tweaking the __gt__ method haha
 
     print(f"Total comparisons made: {comparison_memo.comparison_count}")
 
